@@ -112,6 +112,23 @@ pub fn goto(p: &Project, root: &Path, step: u8) -> Result<(), String> {
     Ok(())
 }
 
+/// Va au bout du parcours : la dernière étape, avec les trous **restés vides** de toutes
+/// les étapes remplis — la dernière comprise, contrairement à `goto <dernière>`. Comme
+/// `goto`, n'écrase jamais ce que le stagiaire a écrit (`solve`, lui, l'écrase).
+pub fn goto_end(p: &Project, root: &Path) -> Result<(), String> {
+    let last = p.last_step;
+    println!("Passage à la fin du parcours (étape {last}).");
+    for step in 0..=last {
+        fill(p, root, step, false)?;
+    }
+    set_default_feature(p, root, last)?;
+    println!(
+        "Les tests des étapes 0 à {last} sont actifs, tous les trous restés vides sont \
+         remplis : `cargo test` doit être vert."
+    );
+    Ok(())
+}
+
 /// Passe à l'étape qui suit l'étape courante.
 pub fn next(p: &Project, root: &Path) -> Result<(), String> {
     let step = current_step(p, root).ok_or_else(|| {

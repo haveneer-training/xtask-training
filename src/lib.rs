@@ -70,18 +70,20 @@
 //! décrit ce qui change d'un fil rouge à l'autre.
 
 mod blocks;
+mod check;
 mod cli;
 mod exercises;
 mod files;
+mod inventory;
 mod project;
 mod starter;
 mod steps;
 mod update;
 mod verify;
 
-pub use crate::project::{Project, TOOL_DIR, check};
+pub use crate::project::{Project, StepCheck, TOOL_DIR, check};
 
-use crate::cli::{Command, parse, run, usage};
+use crate::cli::{Command, Place, parse, run, usage};
 use std::path::{Path, PathBuf};
 
 /// Point d'entrée de `cargo xtrain` : analyse `std::env::args()` et lance la commande.
@@ -91,19 +93,21 @@ use std::path::{Path, PathBuf};
 /// une ligne de commande incomprise, 1 pour une commande en échec).
 pub fn main(project: &Project, manifest_dir: &str) {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let command = match parse(project, &args) {
+    let root = repository_root(manifest_dir);
+    let place = Place::of(&root);
+    let command = match parse(project, place, &args) {
         Ok(Command::Help) => {
-            print!("{}", usage(project));
+            print!("{}", usage(project, place));
             return;
         }
         Ok(command) => command,
         Err(e) => {
-            eprintln!("erreur : {e}\n\n{}", usage(project));
+            eprintln!("erreur : {e}\n\n{}", usage(project, place));
             std::process::exit(2);
         }
     };
 
-    if let Err(e) = run(project, command, &repository_root(manifest_dir)) {
+    if let Err(e) = run(project, command, &root) {
         eprintln!("erreur : {e}");
         std::process::exit(1);
     }

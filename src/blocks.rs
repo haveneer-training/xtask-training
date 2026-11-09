@@ -161,9 +161,29 @@ pub fn rewrite(
     (out.join("\n") + "\n", changed)
 }
 
+/// Ce qui suit le numéro d'étape dans le message d'un `todo!()` du dossier de travail.
+const TODO_TAIL: &str = " — voir le commentaire ci-dessus";
+
 /// La ligne `todo!()` qui tient lieu de travail à faire.
 fn todo_line(indent: &str, step: u8) -> String {
-    format!("{indent}todo!(\"étape {step} — voir le commentaire ci-dessus\")")
+    format!("{indent}todo!(\"étape {step}{TODO_TAIL}\")")
+}
+
+/// Les étapes des `todo!()` du dossier de travail mentionnés dans `text` (la sortie d'un
+/// `cargo test` ou d'un `cargo run` qui a paniqué), dans l'ordre d'apparition.
+pub fn todo_steps(text: &str) -> Vec<u8> {
+    let mut steps = Vec::new();
+    for (at, _) in text.match_indices(TODO_TAIL) {
+        let before = &text[..at];
+        let digits = before.len() - before.trim_end_matches(|c: char| c.is_ascii_digit()).len();
+        if digits > 0
+            && before[..before.len() - digits].ends_with("étape ")
+            && let Ok(step) = before[before.len() - digits..].parse()
+        {
+            steps.push(step);
+        }
+    }
+    steps
 }
 
 /// Ce qui tient lieu de travail à faire dans le dépôt de travail : un `todo!()`, ou
@@ -181,4 +201,23 @@ pub fn hole_body(block: &Block) -> Vec<String> {
 pub fn is_empty(block: &Block) -> bool {
     block.body.iter().any(|l| l.contains("todo!("))
         || block.body.iter().all(|l| l.trim().is_empty())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn todo_steps_reads_the_panic_messages() {
+        let output = format!(
+            "thread 't' panicked at src/a.rs:3:5:\nnot yet implemented: étape 3{TODO_TAIL}\n\
+             ---- b ----\nnot yet implemented: étape 12{TODO_TAIL}\n\
+             note: étape x{TODO_TAIL}\n"
+        );
+        assert_eq!(todo_steps(&output), [3, 12]);
+        assert_eq!(
+            todo_line("    ", 3).trim(),
+            format!("todo!(\"étape 3{TODO_TAIL}\")")
+        );
+    }
 }

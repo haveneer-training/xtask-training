@@ -17,13 +17,40 @@ Depuis le dépôt du corrigé :
 cargo xtrain start [--dir <p>] [--force]   # crée le dossier de travail (travail/ par défaut)
 cargo xtrain update [--dir <p>]            # y reporte les modifications du corrigé
 cargo xtrain verify                        # vérifie les exercices courts
+cargo xtrain check-steps [--quick] [--step <n>] [--keep]   # rejoue les étapes (dossier jetable)
+cargo xtrain inventory                     # inventaire des trous par étape (Markdown)
 ```
+
+`check-steps` engendre un dossier de travail sous `target/check-steps/` (le `travail/` du
+dépôt n'est jamais touché) et y rejoue le parcours : pour chaque étape, `goto`/`next`,
+build, `cargo test` rouge sur les seuls `todo!()` de l'étape, `solve`, vert ; plus le
+contenu livré (aucun marqueur de corrigé), le refus d'aller au-delà de la dernière étape,
+et, tout résolu, ni avertissement ni remarque fmt/clippy.
+
+fmt et clippy : `goto n` peut faire apparaître les remarques **de l'étape n** — des
+indices, rien n'y est imposé —, mais après `solve n` il ne doit plus en rester **aucune**.
+Les trous des étapes suivantes étant encore là, leurs avertissements se taisent jusqu'à
+leur ouverture par un `#[cfg_attr(not(feature = "stepN"), allow(…))] // trou étape N`
+(muet avant l'étape N, visible pendant, sans objet après). Dans le corrigé, la feature
+sentinelle rend ces attributs inertes.
+
+| Mode | Usage | Ce qui est rejoué |
+|---|---|---|
+| `check-steps` | CI | tout ce qui précède, plus `cargo run` et le script `extra` du projet |
+| `check-steps --quick` | agent, avant un commit | contenu livré, rouge à l'ouverture de chaque étape, puis `goto end` et contrôles stricts du code résolu (sans fmt/clippy par étape) |
+| `check-steps --step <n>` (ou `a..b`, répétable) | agent qui a touché l'étape n | `goto n`, puis le contrôle complet de cette étape (avec `--quick` : son ouverture seule) |
+
+Le champ `step_check` du `Project` règle les arguments de build, test, `run`, fmt et
+clippy ; un script du dépôt (`step_check.extra`, lancé avec `start` puis `end`) ajoute les
+contrôles propres au fil rouge. Les commandes passent par le `cargo xtrain` du dossier de
+travail, donc par la révision de `xtask-training` fixée dans `Cargo.lock`.
 
 Depuis le dossier de travail :
 
 ```shell
 cargo xtrain status        # où j'en suis
 cargo xtrain goto <n>      # passer à l'étape n (remplit les trous restés vides avant)
+cargo xtrain goto end      # aller au bout : tous les trous restés vides remplis
 cargo xtrain next          # passer à l'étape suivante
 cargo xtrain solve <n>     # remplir l'étape n (rattrapage)
 cargo xtrain reset <n>     # la rouvrir pour la refaire
@@ -82,6 +109,7 @@ const PROJECT: Project = Project {
     exercise_package_prefix: "mon-fil-rouge",
     exercise_dependencies: &[],
     exercise_manifest_extra: "",
+    step_check: xtask_training::StepCheck::DEFAULT,
 };
 
 fn main() {

@@ -245,7 +245,7 @@ enum Lexer {
 /// `{` ouvrant un `mod`, un `impl`, un `trait` ou une fonction porte une étiquette, les
 /// autres (`if`, `match`, fermeture…) n'en portent pas. Le corps des blocs est sauté aussi : il vient du stagiaire et peut
 /// être à moitié écrit, il ne doit pas déplacer les accolades du reste du fichier.
-fn scopes(text: &str, blocks: &[Block]) -> Vec<String> {
+pub(crate) fn scopes(text: &str, blocks: &[Block]) -> Vec<String> {
     let lines: Vec<&str> = text.lines().collect();
     let mut names = Vec::with_capacity(blocks.len());
     let mut open: Vec<Option<String>> = Vec::new();

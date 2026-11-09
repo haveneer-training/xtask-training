@@ -66,6 +66,61 @@ pub struct Project {
     /// Ajouté tel quel à la fin du manifeste de cette crate jetable (un profil, pour
     /// réutiliser les artefacts du workspace) ; vide le plus souvent.
     pub exercise_manifest_extra: &'static str,
+
+    /// Ce que `cargo xtrain check-steps` vérifie à chaque étape.
+    pub step_check: StepCheck,
+}
+
+/// Comment `cargo xtrain check-steps` éprouve le dispositif d'étapes (voir
+/// `src/check.rs`). Partir de [`StepCheck::DEFAULT`] et n'en changer que l'écart :
+/// `StepCheck { extra: Some("scripts/check-steps-extra.sh"), ..StepCheck::DEFAULT }`.
+#[derive(Debug)]
+pub struct StepCheck {
+    /// Arguments de `cargo build` à chaque étape, et pour compter les avertissements.
+    pub build_args: &'static [&'static str],
+
+    /// Arguments de `cargo test` : rouge à l'ouverture de l'étape n, tous les `todo!()`
+    /// atteints étant ceux de l'étape n (un test d'étape ancienne peut redevenir rouge,
+    /// mais seulement sur un trou de l'étape ouverte) ; vert après `solve n`.
+    pub test_args: &'static [&'static str],
+
+    /// Arguments de `cargo run`, lancé avant et après `solve` de chaque étape : il réussit,
+    /// ou bute sur le `todo!()` d'une étape pas encore résolue — jamais d'une étape
+    /// antérieure. À la dernière étape, il doit réussir. `None` : pas de `cargo run`.
+    pub run: Option<&'static [&'static str]>,
+
+    /// Aucun avertissement de `cargo build` une fois toutes les étapes résolues.
+    pub deny_warnings: bool,
+
+    /// Arguments de `cargo clippy`. À l'ouverture d'une étape, ses remarques sont permises
+    /// (des indices) ; après `solve n`, plus aucune ne doit rester, ni de l'étape n, ni des
+    /// suivantes. `None` : pas de clippy.
+    pub clippy: Option<&'static [&'static str]>,
+
+    /// Arguments de `cargo fmt --check`, avec la même règle : tout est formaté après
+    /// chaque `solve`. `None` : pas de fmt.
+    pub fmt: Option<&'static [&'static str]>,
+
+    /// Script du dépôt (`bash <script> start|end`) pour les contrôles propres au fil
+    /// rouge, lancé dans le dossier de travail après `start` puis après la dernière étape.
+    /// Il reçoit `XTRAIN_ROOT`, `XTRAIN_WORKDIR` et `XTRAIN_LAST_STEP`, et peut appeler
+    /// `cargo xtrain`.
+    pub extra: Option<&'static str>,
+}
+
+impl StepCheck {
+    /// Le réglage par défaut : `cargo test` sans argument ; clippy (toutes les cibles) et
+    /// fmt (tout le workspace) sans aucune remarque après chaque `solve` ; aucun
+    /// avertissement de build une fois tout résolu.
+    pub const DEFAULT: StepCheck = StepCheck {
+        build_args: &["--all-targets"],
+        test_args: &[],
+        run: None,
+        deny_warnings: true,
+        clippy: Some(&["--all-targets"]),
+        fmt: Some(&["--all"]),
+        extra: None,
+    };
 }
 
 impl Project {
@@ -114,7 +169,8 @@ pub fn check(project: &Project, manifest_dir: &str) -> Result<(), String> {
         .chain(project.sentinel_manifests)
         .chain(project.corrige_trees)
         .chain(project.corrige_only_paths)
-        .chain(project.exercise_dependencies.iter().map(|(_, dir)| dir));
+        .chain(project.exercise_dependencies.iter().map(|(_, dir)| dir))
+        .chain(&project.step_check.extra);
     for path in paths {
         if !root.join(path).exists() {
             problems.push(format!("{path} : introuvable dans le dépôt"));
@@ -165,6 +221,7 @@ pub(crate) const TEST_PROJECT: Project = Project {
     exercise_package_prefix: "essai",
     exercise_dependencies: &[],
     exercise_manifest_extra: "",
+    step_check: StepCheck::DEFAULT,
 };
 
 #[cfg(test)]
