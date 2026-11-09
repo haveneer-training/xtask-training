@@ -86,8 +86,11 @@ edition = "2024"
 publish = false
 
 [dependencies]
-xtask-training = { git = "https://github.com/haveneer-training/xtask-training.git" }
+xtask-training = { git = "https://github.com/haveneer-training/xtask-training.git", tag = "v0.1.0" }
 ```
+
+Le `tag` fixe la version de l'outillage : un fil rouge ne change de version que quand on
+modifie ce tag (voir [Versions](#versions)).
 
 ```rust
 // xtrain/src/main.rs
@@ -143,3 +146,28 @@ Faire évoluer l'outillage : pousser ici, puis dans chaque fil rouge
 ## Licence
 
 CC BY-NC-SA 4.0 — Pascal Havé (<contact@haveneer.com>).
+
+## Versions
+
+Chaque version publiée est une étiquette git `vX.Y.Z`, égale au champ `version` de
+`Cargo.toml`. Les fils rouges en dépendent par `tag = "vX.Y.Z"` ; leur `Cargo.lock` (livré
+dans le dossier de travail) fixe le commit.
+
+Numérotation (semver, série 0.x) :
+
+- `Y` augmente pour tout changement incompatible : champ ajouté ou retiré dans `Project`
+  ou `StepCheck` (les fils rouges les construisent en littéral), commande ou option
+  retirée, format des marqueurs modifié ;
+- `Z` augmente pour une correction ou un ajout compatible (nouvelle commande, nouveau
+  message).
+
+Publier une version :
+
+1. passer `version` de `Cargo.toml` à `X.Y.Z`, mettre à jour ce README ;
+2. `cargo test`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check` ;
+3. committer, `git tag vX.Y.Z`, `git push origin master vX.Y.Z`.
+
+Adopter une version dans un fil rouge : changer le `tag` de `xtrain/Cargo.toml`, lancer
+`cargo update -p xtask-training`, adapter `xtrain/src/main.rs` si la version est
+incompatible, vérifier par `cargo xtrain check-steps` puis committer. Les dossiers de
+travail existants la reçoivent par `cargo xtrain update`.
