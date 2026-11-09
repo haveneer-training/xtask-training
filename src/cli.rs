@@ -14,7 +14,7 @@ use crate::check::{CheckOptions, check_steps};
 use crate::inventory::inventory;
 use crate::project::Project;
 use crate::starter::{WORKDIR, make_starter};
-use crate::steps::{REFERENCE, fill, goto, goto_end, next, reset, status};
+use crate::steps::{REFERENCE, fill, goto, goto_end, next, reset, solve_current, status};
 use crate::update::update;
 use crate::verify::verify;
 use std::path::{Path, PathBuf};
@@ -37,6 +37,8 @@ pub enum Command {
     GotoEnd,
     Next,
     Solve(u8),
+    /// `solve` sans numéro : l'étape en cours.
+    SolveCurrent,
     Reset(u8),
     Verify,
     /// `check-steps [--keep] [--quick] [--step <n>|<a>..<b>]…`.
@@ -56,6 +58,7 @@ pub fn run(p: &Project, command: Command, root: &Path) -> Result<(), String> {
         Command::GotoEnd => goto_end(p, root),
         Command::Next => next(p, root),
         Command::Solve(n) => fill(p, root, n, true),
+        Command::SolveCurrent => solve_current(p, root),
         Command::Reset(n) => reset(p, root, n),
         Command::Verify => verify(p, root),
         Command::CheckSteps(options) => check_steps(p, root, &options),
@@ -154,6 +157,7 @@ pub fn parse(p: &Project, place: Place, args: &[String]) -> Result<Command, Stri
             [] => unreachable!(),
         },
         "goto" => step().map(Command::Goto),
+        "solve" if rest.is_empty() => Ok(Command::SolveCurrent),
         "solve" => step().map(Command::Solve),
         "reset" => step().map(Command::Reset),
         "start" | "update" => {
@@ -188,7 +192,7 @@ pub fn usage(p: &Project, place: Place) -> String {
          \x20 cargo xtrain goto <n>              passer à l'étape n (0 à {last})\n\
          \x20 cargo xtrain goto end              aller au bout : remplir tous les trous restés vides\n\
          \x20 cargo xtrain next                  passer à l'étape suivante\n\
-         \x20 cargo xtrain solve <n>             remplir les trous de l'étape n\n\
+         \x20 cargo xtrain solve [<n>]           remplir les trous de l'étape n (par défaut : l'étape en cours)\n\
          \x20 cargo xtrain reset <n>             rouvrir les trous de l'étape n\n"
     );
     let management = format!(
@@ -283,6 +287,7 @@ mod tests {
         assert_eq!(parse_line("goto 3"), Ok(Command::Goto(3)));
         assert_eq!(parse_line("goto end"), Ok(Command::GotoEnd));
         assert_eq!(parse_line("solve 0"), Ok(Command::Solve(0)));
+        assert_eq!(parse_line("solve"), Ok(Command::SolveCurrent));
         assert_eq!(
             parse_line(&format!("reset {LAST_STEP}")),
             Ok(Command::Reset(LAST_STEP))
@@ -320,6 +325,8 @@ mod tests {
             "goto 3 --force",
             "goto end 3",
             "goto fin",
+            "solve 1 2",
+            "solve x",
             "start --dir",
             "start --dir --force",
             "start --dir a --dir b",
@@ -353,7 +360,7 @@ mod tests {
             let args: Vec<String> = line.split_whitespace().map(String::from).collect();
             parse(&TEST_PROJECT, Place::Reference, &args)
         };
-        for line in ["goto 0", "goto end", "next", "solve 1", "reset 1"] {
+        for line in ["goto 0", "goto end", "next", "solve", "solve 1", "reset 1"] {
             let error = parse_ref(line).unwrap_err();
             assert!(error.contains("dossier de travail"), "{line} : {error}");
         }

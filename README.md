@@ -52,7 +52,8 @@ cargo xtrain status        # où j'en suis
 cargo xtrain goto <n>      # passer à l'étape n (remplit les trous restés vides avant)
 cargo xtrain goto end      # aller au bout : tous les trous restés vides remplis
 cargo xtrain next          # passer à l'étape suivante
-cargo xtrain solve <n>     # remplir l'étape n (rattrapage)
+cargo xtrain solve         # remplir l'étape en cours (rattrapage)
+cargo xtrain solve <n>     # remplir l'étape n
 cargo xtrain reset <n>     # la rouvrir pour la refaire
 ```
 
@@ -86,7 +87,7 @@ edition = "2024"
 publish = false
 
 [dependencies]
-xtask-training = { git = "https://github.com/haveneer-training/xtask-training.git", tag = "v0.1.0" }
+xtask-training = { git = "https://github.com/haveneer-training/xtask-training.git", tag = "v0.1.1" }
 ```
 
 Le `tag` fixe la version de l'outillage : un fil rouge ne change de version que quand on

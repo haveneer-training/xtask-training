@@ -131,12 +131,7 @@ pub fn goto_end(p: &Project, root: &Path) -> Result<(), String> {
 
 /// Passe à l'étape qui suit l'étape courante.
 pub fn next(p: &Project, root: &Path) -> Result<(), String> {
-    let step = current_step(p, root).ok_or_else(|| {
-        format!(
-            "étape courante introuvable (ligne `default = [...]` de {})",
-            p.step_manifest
-        )
-    })?;
+    let step = required_current_step(p, root)?;
     let last = p.last_step;
     match next_step(p, step) {
         Some(n) => goto(p, root, n),
@@ -151,6 +146,28 @@ pub fn next(p: &Project, root: &Path) -> Result<(), String> {
 
 /// L'étape qui suit `step`, s'il y en a une. Au-delà de [`Project::last_step`] (la
 /// sentinelle du corrigé), il n'y en a pas.
+/// `solve` sans numéro : remplit les trous de l'étape en cours.
+pub fn solve_current(p: &Project, root: &Path) -> Result<(), String> {
+    let step = required_current_step(p, root)?;
+    if step > p.last_step {
+        return Err(
+            "ce dépôt est le corrigé : il n'y a pas d'étape à remplir.\n\
+             Engendrez le dépôt de travail avec `cargo xtrain start`."
+                .to_string(),
+        );
+    }
+    fill(p, root, step, true)
+}
+
+fn required_current_step(p: &Project, root: &Path) -> Result<u8, String> {
+    current_step(p, root).ok_or_else(|| {
+        format!(
+            "étape courante introuvable (ligne `default = [...]` de {})",
+            p.step_manifest
+        )
+    })
+}
+
 fn next_step(p: &Project, step: u8) -> Option<u8> {
     (step < p.last_step).then_some(step + 1)
 }

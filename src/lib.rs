@@ -18,7 +18,8 @@
 //! cargo xtrain status                 # où j'en suis
 //! cargo xtrain goto 3                 # passer à l'étape 3
 //! cargo xtrain next                   # passer à l'étape suivante
-//! cargo xtrain solve 2                # remplir l'étape 2 pour moi (rattrapage)
+//! cargo xtrain solve                  # remplir l'étape en cours pour moi (rattrapage)
+//! cargo xtrain solve 2                # remplir l'étape 2
 //! cargo xtrain reset 2                # la rouvrir pour la refaire
 //! ```
 //!
