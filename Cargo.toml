@@ -1,0 +1,14 @@
+[package]
+name = "xtask-training"
+description = "Outillage commun des fils rouges de formation : dossier de travail à trous, pilotage des étapes (`cargo xtrain`)"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+license = "CC-BY-NC-SA-4.0"
+authors = ["Pascal Havé <contact@haveneer.com>"]
+repository = "https://github.com/haveneer-training/xtask-training"
+publish = false
+
+# Aucune dépendance, volontairement : `cargo xtrain start` est la toute première commande
+# du stagiaire, elle doit compiler vite et hors ligne (voir `src/cli.rs`).
+[dependencies]
