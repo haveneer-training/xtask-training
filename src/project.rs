@@ -7,6 +7,10 @@ use std::fs;
 /// rangés les blocs de référence et les énoncés livrés.
 pub const TOOL_DIR: &str = "xtrain";
 
+/// Le dépôt git de cette crate, tel que les fils rouges en dépendent : la clé du
+/// `[patch]` qui la remplace par une copie locale.
+pub const REPOSITORY: &str = "https://github.com/haveneer-training/xtask-training.git";
+
 /// La description d'un fil rouge, tous chemins relatifs à la racine de son dépôt.
 ///
 /// Écrite une fois pour toutes dans la crate `xtrain/` du dépôt ; [`check`] vérifie

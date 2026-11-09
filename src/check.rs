@@ -37,10 +37,16 @@
 //! Les commandes du stagiaire passent par `cargo xtrain` dans le dossier de travail : c'est
 //! aussi l'outil livré qui est éprouvé. Les artefacts restent sous `target/check-steps/target`
 //! d'un lancement à l'autre, ce qui évite de recompiler les dépendances.
+//!
+//! **Lib locale.** Lancé avec une copie locale de cette crate (`cargo --config
+//! 'patch."<dépôt>".xtask-training.path="…"' xtrain check-steps`), le contrôle transmet ce
+//! patch au dossier de travail, sans quoi ses `cargo xtrain` y prendraient la version
+//! publiée : il l'écrit dans `target/check-steps/.cargo/config.toml`, que cargo lit depuis
+//! tout dossier en dessous ([`share_local_lib`]).
 
 use crate::blocks::{SOLUTION_BEGIN, SOLUTION_END, todo_steps};
 use crate::files::relative;
-use crate::project::{Project, TOOL_DIR};
+use crate::project::{Project, REPOSITORY, TOOL_DIR};
 use crate::starter::{WORKDIR, ensure_reference, generate};
 use crate::steps::current_step;
 use std::collections::BTreeSet;
@@ -74,6 +80,7 @@ pub fn check_steps(p: &Project, root: &Path, options: &CheckOptions) -> Result<(
         target: base.join("target"),
         color: std::io::stdout().is_terminal(),
     };
+    share_local_lib(&base, root)?;
     if checker.work.exists() {
         fs::remove_dir_all(&checker.work)
             .map_err(|e| format!("{} : {e}", checker.work.display()))?;
@@ -109,6 +116,49 @@ pub fn check_steps(p: &Project, root: &Path, options: &CheckOptions) -> Result<(
         "\n{} en {:.0?}",
         checker.paint("32", &format!("==> {checked} vérifiée(s){mode}")),
         started.elapsed()
+    );
+    Ok(())
+}
+
+/// Le dossier des sources de cette crate, tel que compilé.
+const LIB_DIR: &str = env!("CARGO_MANIFEST_DIR");
+
+/// `dir` est-il une copie locale de la crate, et non celle que cargo a téléchargée (dépôt
+/// git ou registre, rangés sous `$CARGO_HOME`) ?
+fn is_local(dir: &str) -> bool {
+    let dir = dir.replace('\\', "/");
+    !["/git/checkouts/", "/registry/src/"]
+        .iter()
+        .any(|cached| dir.contains(cached))
+}
+
+/// Transmet au dossier de travail, sous `base`, la copie locale de la crate qui exécute
+/// ce contrôle, s'il y en a une ; sinon, efface une transmission d'un lancement précédent.
+///
+/// Cargo lit les `.cargo/config.toml` de tous les dossiers parents du répertoire courant :
+/// celui de `base` vaut pour toute commande lancée dans le dossier de travail, `cargo
+/// xtrain` imbriqué et script [`StepCheck::extra`](crate::StepCheck::extra) compris. Il
+/// reste sous `target/` : ni livré, ni lu depuis le corrigé.
+fn share_local_lib(base: &Path, root: &Path) -> Result<(), String> {
+    let config = base.join(".cargo").join("config.toml");
+    if !is_local(LIB_DIR) {
+        if config.exists() {
+            fs::remove_file(&config).map_err(|e| format!("{} : {e}", config.display()))?;
+        }
+        return Ok(());
+    }
+    let text = format!(
+        "# Écrit par `cargo xtrain check-steps` : la copie locale de xtask-training qui\n\
+         # exécute le contrôle, transmise au dossier de travail.\n\
+         [patch.\"{REPOSITORY}\"]\n\
+         xtask-training = {{ path = '{LIB_DIR}' }}\n"
+    );
+    let dir = config.parent().expect("config.toml a un dossier parent");
+    fs::create_dir_all(dir).map_err(|e| format!("{} : {e}", dir.display()))?;
+    fs::write(&config, text).map_err(|e| format!("{} : {e}", config.display()))?;
+    println!(
+        "==> lib locale : {LIB_DIR}\n   transmise au dossier de travail ({})",
+        relative(root, &config)
     );
     Ok(())
 }
@@ -685,6 +735,20 @@ warning: `wind-tunnel` (lib) generated 3 warnings
                 "src/solver.rs : warning: unused variable: `k1`",
             ]
         );
+    }
+
+    #[test]
+    fn a_downloaded_crate_is_not_local() {
+        assert!(!is_local(
+            "/home/u/.cargo/git/checkouts/xtask-training-1a2b/5a3bfbf"
+        ));
+        assert!(!is_local(
+            "/home/u/.cargo/registry/src/index.crates.io-1a2b/xtask-training-0.1.2"
+        ));
+        assert!(!is_local(
+            r"C:\Users\u\.cargo\git\checkouts\xtask-training-1a2b\5a3bfbf"
+        ));
+        assert!(is_local("/home/u/exercises/xtask-training"));
     }
 
     #[test]

@@ -172,3 +172,24 @@ Adopter une version dans un fil rouge : changer le `tag` de `xtrain/Cargo.toml`,
 `cargo update -p xtask-training`, adapter `xtrain/src/main.rs` si la version est
 incompatible, vérifier par `cargo xtrain check-steps` puis committer. Les dossiers de
 travail existants la reçoivent par `cargo xtrain update`.
+
+## Essayer une version locale
+
+Sans toucher à `xtrain/Cargo.toml`, depuis le corrigé d'un fil rouge, une copie locale de
+cette crate remplace la version étiquetée par un `[patch]` passé en ligne de commande :
+
+```shell
+P='patch."https://github.com/haveneer-training/xtask-training.git".xtask-training.path="../xtask-training"'
+cargo --config "$P" update -p xtask-training   # le lock suit la version locale
+cargo --config "$P" xtrain check-steps         # ou toute autre commande
+git checkout -- Cargo.lock                     # à la fin : retour à la version étiquetée
+```
+
+`check-steps` s'aperçoit qu'il tourne sur une copie locale (« lib locale : … ») et la
+transmet au dossier de travail jetable, par un `target/check-steps/.cargo/config.toml` que
+cargo lit depuis tout dossier en dessous : les `cargo xtrain` qu'il y lance, et le script
+`extra`, tournent eux aussi sur la copie locale. Lancé ensuite sur la version étiquetée, il
+efface ce fichier.
+
+Sans `update -p`, si la version locale diffère de celle du lock, cargo ignore le patch
+(« Patch … was not used in the crate graph ») : tout tourne alors sur la version étiquetée.

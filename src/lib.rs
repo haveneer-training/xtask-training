@@ -82,7 +82,7 @@ mod steps;
 mod update;
 mod verify;
 
-pub use crate::project::{Project, StepCheck, TOOL_DIR, check};
+pub use crate::project::{Project, REPOSITORY, StepCheck, TOOL_DIR, check};
 
 use crate::cli::{Command, Place, parse, run, usage};
 use std::path::{Path, PathBuf};
